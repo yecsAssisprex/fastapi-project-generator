@@ -1,0 +1,23 @@
+FROM python:{{PYTHON_VERSION}}-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# `curl` no es decorativo: lo usa el healthcheck del docker-compose.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential curl{{APT_DB}} \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app ./app
+#{{DOCKERFILE_DB_COPY}}
+
+# El mismo puerto que en desarrollo sin contenedor: una sola numeracion.
+EXPOSE {{PORT}}
+
+# El .env NO se copia a la imagen: las variables se inyectan al correr el contenedor.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "{{PORT}}"]

@@ -1,0 +1,110 @@
+"""Recurso de ejemplo: CRUD minimo y los dos patrones de autenticacion.
+
+Borralo cuando escribas el primer recurso real. Esta aqui para que los patrones del
+proyecto queden a la vista, no porque el servicio lo necesite.
+"""
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.security import Identity, get_current_identity
+from app.models import Example
+from app.schemas.example import ExampleCreate, ExampleRead, ExampleUpdate, IdentityRead
+
+# PATRON 1 — guardia de todo el router.
+# Cuando basta con exigir autenticacion: todos los endpoints de aqui responden 401
+# sin un JWT valido, sin repetir la dependencia en cada uno.
+router = APIRouter(
+    prefix="/examples",
+    tags=["examples"],
+    dependencies=[Depends(get_current_identity)],
+)
+
+
+@router.get("/me", response_model=IdentityRead, summary="Quien esta llamando")
+def quien_soy(identity: Identity = Depends(get_current_identity)) -> IdentityRead:
+    # PATRON 2 — inyectar la identidad.
+    # Cuando el endpoint necesita saber QUIEN llama, no solo que este autenticado. Se
+    # combina con el patron 1 sin coste: FastAPI resuelve la dependencia una sola vez
+    # por peticion y reutiliza el resultado.
+    return IdentityRead(national_id=identity.national_id)
+
+
+def _get_or_404(db: Session, example_id: uuid.UUID) -> Example:
+    example = db.get(Example, example_id)
+    if example is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No encontrado")
+    return example
+
+
+@router.post(
+    "",
+    response_model=ExampleRead,
+    status_code=status.HTTP_201_CREATED,
+    summary="Crear",
+)
+def create_example(payload: ExampleCreate, db: Session = Depends(get_db)) -> Example:
+    duplicado = db.scalar(select(Example).where(Example.slug == payload.slug))
+    if duplicado is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Ya existe un registro con el slug '{payload.slug}'",
+        )
+    example = Example(**payload.model_dump())
+    db.add(example)
+    db.commit()
+    db.refresh(example)
+    return example
+
+
+@router.get("", response_model=list[ExampleRead], summary="Listar")
+def list_examples(db: Session = Depends(get_db)) -> list[Example]:
+    return list(db.scalars(select(Example).order_by(Example.slug)).all())
+
+
+@router.get("/{example_id}", response_model=ExampleRead, summary="Detalle")
+def get_example(example_id: uuid.UUID, db: Session = Depends(get_db)) -> Example:
+    return _get_or_404(db, example_id)
+
+
+@router.patch("/{example_id}", response_model=ExampleRead, summary="Actualizar")
+def update_example(
+    example_id: uuid.UUID,
+    payload: ExampleUpdate,
+    db: Session = Depends(get_db),
+) -> Example:
+    cambios = payload.model_dump(exclude_unset=True)
+    if not cambios:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No se envio ningun campo a actualizar",
+        )
+    # Un `null` explicito no es "no lo toques" —para eso se omite el campo— sino
+    # "borralo", y `label` no admite quedar vacio. Sin este control la peticion
+    # llegaria a la base y reventaria con un 500 por NOT NULL.
+    if cambios.get("label", "") is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="label no admite null. Para dejarlo como esta, omitelo del cuerpo.",
+        )
+
+    example = _get_or_404(db, example_id)
+    for campo, valor in cambios.items():
+        setattr(example, campo, valor)
+    db.commit()
+    db.refresh(example)
+    return example
+
+
+@router.delete(
+    "/{example_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Borrar",
+)
+def delete_example(example_id: uuid.UUID, db: Session = Depends(get_db)) -> None:
+    db.delete(_get_or_404(db, example_id))
+    db.commit()

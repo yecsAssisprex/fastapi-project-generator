@@ -1,0 +1,11 @@
+"""El healthcheck: publico y con la forma que espera el orquestador."""
+
+
+def test_health_no_exige_token(anon_client):
+    res = anon_client.get("/health")
+    assert res.status_code == 200
+    assert res.json() == {
+        "status": "ok",
+        "service": "{{PROJECT_NAME}}",
+        "environment": "test",
+    }

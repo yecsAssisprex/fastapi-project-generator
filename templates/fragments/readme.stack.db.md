@@ -1,0 +1,2 @@
+- **PostgreSQL** via SQLAlchemy 2 (estilo `Mapped[]`) + Alembic
+- Driver **psycopg 3**, sincrono (`postgresql+psycopg://`)

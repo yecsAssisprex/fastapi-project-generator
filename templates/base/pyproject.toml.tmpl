@@ -1,0 +1,10 @@
+# Configuracion de herramientas, y solo eso.
+#
+# Las dependencias NO viven aqui: van en `requirements.txt` con versiones pineadas.
+# Es la convencion del resto de los servicios, y mantener dos listas seria peor que
+# no tener ninguna.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]
+#{{QUALITY_PYPROJECT}}

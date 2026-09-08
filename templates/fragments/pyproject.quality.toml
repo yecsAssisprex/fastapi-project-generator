@@ -1,0 +1,21 @@
+
+[tool.ruff]
+target-version = "{{PY_TAG}}"
+line-length = 100
+# El directorio raiz del proyecto: es lo que permite a ruff distinguir `app` y
+# `tests` (primera parte) de las dependencias al ordenar los imports.
+src = ["."]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+  # `Depends(...)` como valor por defecto es EL patron de FastAPI, no un error.
+  "B008",
+  # `datetime.UTC` solo existe desde Python 3.11, y este proyecto puede generarse
+  # para una version anterior. `timezone.utc` funciona en todas.
+  "UP017",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "tests"]
+#{{PYPROJECT_ISORT_DB}}

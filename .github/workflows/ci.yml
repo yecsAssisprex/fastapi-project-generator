@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  scripts:
+    name: Lint de los scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          shellcheck --severity=warning bootstrap.sh tests/e2e.sh
+
+      - name: PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -ErrorAction Stop
+          $r = Invoke-ScriptAnalyzer -Path ./bootstrap.ps1 -Severity Error,Warning
+          if ($r) { $r | Format-Table -AutoSize | Out-String | Write-Host; exit 1 }
+          Write-Host "PSScriptAnalyzer: sin hallazgos"
+
+  e2e:
+    name: e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Genera un proyecto con cada combinacion de flags, lo instala y corre SUS
+      # tests y SU linter: es la unica forma de saber que el generador no produce
+      # proyectos rotos.
+      - name: Suite de extremo a extremo
+        run: ./tests/e2e.sh
+
+  parity:
+    name: Paridad bash / PowerShell
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generar con ambos y comparar
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/sh /tmp/ps
+          for combo in "p-full:--all:-All" \
+                       "p-db:--with-db:-WithDb" \
+                       "p-docker:--with-docker:-WithDocker" \
+                       "p-base::" \
+                       "p-noq:--all --no-quality:-All -NoQuality"; do
+            name="${combo%%:*}"; rest="${combo#*:}"
+            sh_args="${rest%%:*}"; ps_args="${rest##*:}"
+            ./bootstrap.sh "$name" $sh_args -d /tmp/sh -y --no-git > /dev/null
+            pwsh -NoProfile -File ./bootstrap.ps1 "$name" $ps_args -Dest /tmp/ps -Yes -NoGit > /dev/null
+          done
+          diff -r /tmp/sh /tmp/ps
+          echo "bash y PowerShell generan lo mismo en las 5 combinaciones"

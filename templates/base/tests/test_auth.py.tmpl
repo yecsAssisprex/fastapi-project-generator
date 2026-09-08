@@ -1,0 +1,36 @@
+"""Los siete caminos que tienen que terminar en 401, y el que no.
+
+Si alguno de estos deja de fallar, el servicio esta aceptando un token que no
+deberia. Son la red de seguridad de `app/core/security.py`.
+"""
+
+import pytest
+
+from tests.conftest import NATIONAL_ID, auth_header, make_token
+
+
+@pytest.mark.parametrize(
+    ("caso", "token"),
+    [
+        ("sin-token", None),
+        ("firma-invalida", make_token(secret="otra-clave-distinta")),
+        ("expirado", make_token(expires_in_seconds=-60)),
+        ("issuer-ajeno", make_token(issuer="otro-emisor")),
+        ("audience-ajena", make_token(audience="otra-audiencia")),
+        ("refresh-como-access", make_token(token_type="refresh")),
+        ("scope-limitado", make_token(scope="password_change_only")),
+    ],
+)
+def test_token_rechazado(anon_client, caso, token):
+    headers = auth_header(token) if token else {}
+    res = anon_client.get("/examples/me", headers=headers)
+    assert res.status_code == 401, f"{caso} deberia dar 401"
+    # Un solo mensaje para todos los casos: decir en cual fallo le daria a un
+    # atacante la pista de que le falta.
+    assert res.json()["detail"] == "Token invalido o expirado"
+
+
+def test_con_token_valido_devuelve_la_identidad(client):
+    res = client.get("/examples/me")
+    assert res.status_code == 200
+    assert res.json() == {"national_id": NATIONAL_ID}

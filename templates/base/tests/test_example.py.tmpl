@@ -1,0 +1,19 @@
+"""Recurso de ejemplo. Borralo junto con el recurso."""
+
+from tests.conftest import NATIONAL_ID
+
+
+def test_el_endpoint_protegido_recibe_quien_llama(client):
+    res = client.post("/examples/echo", json={"message": "hola"})
+    assert res.status_code == 200
+    assert res.json() == {"message": "hola", "requested_by": NATIONAL_ID}
+
+
+def test_un_campo_desconocido_es_400(client):
+    # 400 y no el 422 por defecto de FastAPI: el 422 esta reservado al dominio.
+    res = client.post("/examples/echo", json={"message": "hola", "idioma": "es"})
+    assert res.status_code == 400
+
+
+def test_un_mensaje_vacio_es_400(client):
+    assert client.post("/examples/echo", json={"message": ""}).status_code == 400

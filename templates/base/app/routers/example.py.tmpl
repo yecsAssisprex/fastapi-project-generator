@@ -1,0 +1,36 @@
+"""Recurso de ejemplo: muestra los dos patrones de autenticacion del proyecto.
+
+Borralo cuando escribas el primer recurso real. Esta aqui para que el patron quede a
+la vista, no porque el servicio lo necesite.
+"""
+
+from fastapi import APIRouter, Depends
+
+from app.core.security import Identity, get_current_identity
+from app.schemas.example import EchoRequest, EchoResponse, IdentityRead
+
+# PATRON 1 — guardia de todo el router.
+# Cuando basta con exigir autenticacion: todos los endpoints de aqui responden 401
+# sin un JWT valido, sin repetir la dependencia en cada uno.
+router = APIRouter(
+    prefix="/examples",
+    tags=["examples"],
+    dependencies=[Depends(get_current_identity)],
+)
+
+
+@router.get("/me", response_model=IdentityRead, summary="Quien esta llamando")
+def quien_soy(identity: Identity = Depends(get_current_identity)) -> IdentityRead:
+    # PATRON 2 — inyectar la identidad.
+    # Cuando el endpoint necesita saber QUIEN llama, no solo que este autenticado. Se
+    # combina con el patron 1 sin coste: FastAPI resuelve la dependencia una sola vez
+    # por peticion y reutiliza el resultado.
+    return IdentityRead(national_id=identity.national_id)
+
+
+@router.post("/echo", response_model=EchoResponse, summary="Devuelve lo que se le envia")
+def echo(
+    payload: EchoRequest,
+    identity: Identity = Depends(get_current_identity),
+) -> EchoResponse:
+    return EchoResponse(message=payload.message, requested_by=identity.national_id)

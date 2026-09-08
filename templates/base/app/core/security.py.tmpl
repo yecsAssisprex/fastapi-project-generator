@@ -1,0 +1,91 @@
+"""Autenticacion: validacion del JWT que emite el servicio de identidad.
+
+La firma se verifica **localmente**, en este mismo proceso: el token es autocontenido
+y el secreto es compartido, asi que no hace falta una llamada de red por peticion.
+
+La identidad canonica es la cedula, que viaja en el claim `sub`.
+
+Uso desde un router — hay dos patrones, y `app/routers/example.py` muestra los dos:
+
+    # 1. Guardia de todo el router, cuando basta con exigir autenticacion:
+    router = APIRouter(prefix="/cosas", dependencies=[Depends(get_current_identity)])
+
+    # 2. Inyectando la identidad, cuando el endpoint necesita saber QUIEN llama:
+    def endpoint(identity: Identity = Depends(get_current_identity)): ...
+"""
+
+from dataclasses import dataclass
+
+import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.core.config import settings
+
+ACCESS_TOKEN_TYPE = "access"
+
+# Alcance del token. El servicio de identidad emite tokens de alcance limitado (por
+# ejemplo, tras un reseteo asistido: solo sirven para cambiar la contrasena). Estan
+# correctamente firmados, asi que hay que validar el claim, no solo la firma.
+# Un token sin `scope` se trata como `full`, para no invalidar los ya emitidos.
+SCOPE_FULL = "full"
+
+bearer_scheme = HTTPBearer(auto_error=False)
+
+INVALID_TOKEN = HTTPException(
+    status_code=status.HTTP_401_UNAUTHORIZED,
+    detail="Token invalido o expirado",
+    headers={"WWW-Authenticate": "Bearer"},
+)
+
+
+@dataclass(frozen=True)
+class Identity:
+    """Quien esta haciendo la peticion."""
+
+    national_id: str
+    claims: dict
+
+
+def get_current_identity(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> Identity:
+    if creds is None or not creds.credentials:
+        raise INVALID_TOKEN
+    try:
+        claims = jwt.decode(
+            creds.credentials,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            # `audience` e `issuer` no son decorativos: sin ellos, un token valido
+            # emitido para OTRO sistema con el mismo secreto entraria aqui.
+            audience=settings.jwt_audience,
+            issuer=settings.jwt_issuer,
+        )
+    except jwt.PyJWTError:
+        # Un solo 401 para firma invalida, expirado, issuer y audience: distinguirlos
+        # en la respuesta le diria a un atacante en que se equivoco.
+        raise INVALID_TOKEN from None
+
+    # Un refresh token no sirve para operar: solo para pedir un access token nuevo.
+    if claims.get("type") != ACCESS_TOKEN_TYPE:
+        raise INVALID_TOKEN
+    # Un token de alcance limitado tampoco, aunque su firma sea valida.
+    if claims.get("scope", SCOPE_FULL) != SCOPE_FULL:
+        raise INVALID_TOKEN
+    national_id = claims.get("sub")
+    if not national_id:
+        raise INVALID_TOKEN
+    return Identity(national_id=national_id, claims=claims)
+
+
+def get_bearer_token(
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> str | None:
+    """Token crudo de la peticion entrante, para propagarlo a otros servicios.
+
+    Las llamadas service-to-service viajan con el token de quien origino la peticion:
+    asi el servicio llamado ve a la misma persona y no hace falta una credencial de
+    servicio aparte ni abrir sus endpoints.
+    """
+    return creds.credentials if creds else None

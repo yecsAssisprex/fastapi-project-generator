@@ -1,0 +1,72 @@
+"""CRUD del recurso de ejemplo. Borralo junto con el recurso."""
+
+PAYLOAD = {"slug": "mi-ejemplo", "label": "Mi ejemplo", "description": "una descripcion"}
+
+
+def crear(client, **extra):
+    res = client.post("/examples", json={**PAYLOAD, **extra})
+    assert res.status_code == 201, res.text
+    return res.json()
+
+
+def test_crear_y_leer(client):
+    creado = crear(client)
+    assert creado["slug"] == "mi-ejemplo"
+
+    detalle = client.get(f"/examples/{creado['id']}")
+    assert detalle.status_code == 200
+    assert detalle.json()["label"] == "Mi ejemplo"
+
+
+def test_el_slug_se_normaliza_y_se_valida(client):
+    creado = crear(client, slug="  Mi-Ejemplo  ")
+    assert creado["slug"] == "mi-ejemplo"
+
+    invalido = client.post("/examples", json={**PAYLOAD, "slug": "con espacios"})
+    assert invalido.status_code == 400
+
+
+def test_slug_duplicado_es_409(client):
+    crear(client)
+    assert client.post("/examples", json=PAYLOAD).status_code == 409
+
+
+def test_listar(client):
+    crear(client)
+    crear(client, slug="otro")
+    assert [e["slug"] for e in client.get("/examples").json()] == ["mi-ejemplo", "otro"]
+
+
+def test_actualizar(client):
+    creado = crear(client)
+    res = client.patch(f"/examples/{creado['id']}", json={"label": "Otro nombre"})
+    assert res.status_code == 200
+    assert res.json()["label"] == "Otro nombre"
+
+
+def test_actualizar_sin_campos_es_422(client):
+    creado = crear(client)
+    assert client.patch(f"/examples/{creado['id']}", json={}).status_code == 422
+
+
+def test_un_null_explicito_es_400(client):
+    creado = crear(client)
+    res = client.patch(f"/examples/{creado['id']}", json={"label": None})
+    assert res.status_code == 400
+
+
+def test_borrar(client):
+    creado = crear(client)
+    assert client.delete(f"/examples/{creado['id']}").status_code == 204
+    assert client.get(f"/examples/{creado['id']}").status_code == 404
+
+
+def test_id_inexistente_es_404(client):
+    res = client.get("/examples/11111111-1111-4111-8111-111111111111")
+    assert res.status_code == 404
+
+
+def test_un_campo_desconocido_es_400(client):
+    # 400 y no el 422 por defecto de FastAPI: el 422 esta reservado al dominio.
+    res = client.post("/examples", json={**PAYLOAD, "color": "azul"})
+    assert res.status_code == 400

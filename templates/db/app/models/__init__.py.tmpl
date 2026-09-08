@@ -1,0 +1,5 @@
+# `alembic/env.py` importa este modulo para poblar `Base.metadata`: cada modelo nuevo
+# tiene que quedar reexportado aqui o sus tablas no entraran en las migraciones.
+from app.models.example import Example
+
+__all__ = ["Example"]

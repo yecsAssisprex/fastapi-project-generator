@@ -1,0 +1,5 @@
+
+# Las migraciones viajan en la imagen: `alembic upgrade head` se corre dentro del
+# contenedor, contra el Postgres al que apunte DATABASE_URL.
+COPY alembic ./alembic
+COPY alembic.ini .

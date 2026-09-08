@@ -1,0 +1,22 @@
+"""Contratos de entrada/salida del recurso de ejemplo."""
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class IdentityRead(BaseModel):
+    """Quien esta llamando, tal como lo ve el servicio."""
+
+    national_id: str
+
+
+class EchoRequest(BaseModel):
+    # Un campo desconocido en el body es un error del cliente, no algo a ignorar en
+    # silencio: casi siempre es una errata en el nombre.
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=200, examples=["hola"])
+
+
+class EchoResponse(BaseModel):
+    message: str
+    requested_by: str

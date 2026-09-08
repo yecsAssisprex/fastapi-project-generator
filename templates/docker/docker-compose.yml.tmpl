@@ -1,0 +1,21 @@
+name: {{PROJECT_NAME}}
+
+services:
+  app:
+    build: .
+    container_name: {{PROJECT_NAME}}
+    restart: unless-stopped
+    ports:
+      - "{{PORT}}:{{PORT}}"
+    env_file:
+      - .env
+    environment:
+      APP_NAME: {{PROJECT_NAME}}
+#{{COMPOSE_APP_DB}}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:{{PORT}}/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+#{{COMPOSE_DB_SERVICE}}

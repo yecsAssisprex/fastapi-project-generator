@@ -1,0 +1,3 @@
+# `alembic/` es un directorio de este proyecto, asi que ruff lo tomaria por codigo
+# propio al ordenar los imports; el `alembic` que se importa es la dependencia.
+known-third-party = ["alembic"]

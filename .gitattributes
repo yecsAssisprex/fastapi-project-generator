@@ -1,0 +1,6 @@
+# Las plantillas se copian tal cual al proyecto generado: si git las convirtiera a
+# CRLF al clonar en Windows, los .py y el Dockerfile saldrian con saltos de linea de
+# Windows y romperian dentro del contenedor.
+* text=auto eol=lf
+*.ps1 text eol=lf
+templates/** text eol=lf

@@ -1,0 +1,108 @@
+"""Fixtures de pytest.
+
+La suite no depende de infraestructura: SQLite en memoria en vez de Postgres, y los
+tokens se firman aqui con la misma clave que valida el servicio. Alembic no
+interviene: el esquema se crea con `create_all`.
+"""
+
+import os
+import uuid
+from datetime import datetime, timedelta, timezone
+
+os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite:///:memory:")
+# Estas variables se fijan ANTES de importar la app: `Settings` se construye al
+# importar `app.core.config`, y despues ya no las lee.
+os.environ.setdefault("ENVIRONMENT", "test")
+os.environ.setdefault("JWT_SECRET_KEY", "clave-de-pruebas-de-{{PROJECT_NAME}}")
+
+import jwt
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from app.core.database import Base, get_db
+from app.main import app
+
+NATIONAL_ID = "1099887766"
+
+
+def make_token(
+    national_id: str = NATIONAL_ID,
+    *,
+    token_type: str = "access",
+    scope: str = "full",
+    expires_in_seconds: int = 900,
+    secret: str | None = None,
+    issuer: str | None = None,
+    audience: str | None = None,
+) -> str:
+    """Firma un token de prueba.
+
+    Cada parametro existe para poder generar uno de los casos de 401: `secret` para
+    la firma invalida, `expires_in_seconds` negativo para el expirado, `issuer` y
+    `audience` para los emisores ajenos, `token_type` para el refresh y `scope` para
+    el alcance limitado.
+    """
+    from app.core.config import settings
+
+    ahora = datetime.now(timezone.utc)
+    payload = {
+        "sub": national_id,
+        "national_id": national_id,
+        "type": token_type,
+        "scope": scope,
+        "jti": str(uuid.uuid4()),
+        "iat": int(ahora.timestamp()),
+        "exp": int((ahora + timedelta(seconds=expires_in_seconds)).timestamp()),
+        "iss": issuer or settings.jwt_issuer,
+        "aud": audience or settings.jwt_audience,
+    }
+    return jwt.encode(
+        payload,
+        secret or settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
+def auth_header(token: str | None = None) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token or make_token()}"}
+
+
+@pytest.fixture
+def db_session():
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    testing_session = sessionmaker(bind=engine, autocommit=False, autoflush=False)
+    session = testing_session()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
+
+
+@pytest.fixture
+def client(db_session):
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        # Por defecto las pruebas van autenticadas: los endpoints de negocio exigen
+        # JWT y lo que se quiere probar es la logica, no el 401.
+        test_client.headers.update(auth_header())
+        yield test_client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def anon_client(client):
+    """Mismo cliente, sin cabecera de autorizacion: para probar los 401."""
+    client.headers.pop("Authorization", None)
+    return client

@@ -1,0 +1,39 @@
+"""Configuracion del servicio, cargada desde variables de entorno / .env.
+
+Ninguna URL ni credencial esta hardcodeada: todo sale de aqui, para que el mismo
+build funcione en local y en contenedor apuntando a hosts distintos.
+"""
+
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    app_name: str = "{{PROJECT_NAME}}"
+    environment: str = "local"
+    debug: bool = True
+#{{CONFIG_DB}}
+
+    # --- Autenticacion ---
+    # Este servicio NO emite tokens: valida localmente la firma de los que emite el
+    # servicio de identidad, con el mismo secreto compartido. El token es
+    # autocontenido y dura minutos, asi que una llamada de red por peticion solo
+    # anadiria latencia y un punto de fallo.
+    #
+    # El default deja arrancar en local sin configurar nada. En cualquier otro
+    # entorno se inyecta por variable de entorno y este valor no debe llegar nunca.
+    jwt_secret_key: str = "cambiame-en-local-y-nunca-uses-esto-en-produccion"
+    jwt_algorithm: str = "HS256"
+    jwt_issuer: str = "allegro-identity-auth"
+    jwt_audience: str = "allegro-control-plane"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
+
+
+settings = get_settings()

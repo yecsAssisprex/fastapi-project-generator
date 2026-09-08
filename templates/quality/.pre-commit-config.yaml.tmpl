@@ -1,0 +1,20 @@
+# Instalar una vez con:  pre-commit install
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Misma version que en requirements.txt: si divergen, el commit y la CI pueden
+    # discrepar sobre el mismo archivo.
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: detect-private-key

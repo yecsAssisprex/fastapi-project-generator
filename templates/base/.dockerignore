@@ -1,0 +1,19 @@
+# El contexto de build no debe incluir dependencias ni artefactos locales.
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secretos y material local: nunca dentro de la imagen.
+.env
+.env.local
+
+# Historia y pruebas: no hacen falta en tiempo de ejecucion.
+.git/
+.gitignore
+tests/
+README.md

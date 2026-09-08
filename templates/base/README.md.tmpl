@@ -1,0 +1,85 @@
+# {{PROJECT_NAME}}
+
+{{PROJECT_TITLE}} — servicio FastAPI generado con `fastapi-project-generator`.
+
+## Stack
+
+- **FastAPI 0.115** · Python {{PYTHON_VERSION}} · Pydantic v2
+- **Autenticacion JWT** con validacion local de la firma (PyJWT)
+#{{README_STACK_DB}}
+
+## Puesta en marcha
+#{{README_SETUP_DB}}
+
+```bash
+python3 -m venv venv && source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env          # completar JWT_SECRET_KEY
+uvicorn app.main:app --reload --port {{PORT}}
+```
+
+- Swagger UI: http://localhost:{{PORT}}/docs
+- Healthcheck: http://localhost:{{PORT}}/health
+#{{README_DOCKER}}
+
+## Pruebas
+
+```bash
+pytest
+```
+
+No requieren infraestructura levantada: los tokens se firman en `tests/conftest.py`
+con la misma clave que valida el servicio.
+#{{README_QUALITY}}
+
+## Autenticacion
+
+Todo salvo `/health` exige el JWT que emite el servicio de identidad. La firma se
+valida **localmente**: el token es autocontenido y dura minutos, asi que una llamada
+de red por peticion solo anadiria latencia y un punto de fallo.
+
+Se rechazan con `401`, todos con el mismo mensaje:
+
+| Caso | Por que |
+|---|---|
+| Sin cabecera `Authorization` | — |
+| Firma invalida | El secreto no coincide |
+| Token expirado | — |
+| `issuer` distinto | El token lo emitio otro sistema |
+| `audience` distinta | El token no era para este servicio |
+| Refresh token | Solo sirve para pedir un access token nuevo |
+| `scope` limitado | Firmado correctamente, pero su alcance no cubre operar |
+
+`app/routers/example.py` muestra los dos patrones de uso: guardia de router completo
+y inyeccion de `Identity` cuando el endpoint necesita saber quien llama.
+
+## Estructura
+
+```
+app/
+├── main.py          # FastAPI(), routers, /health
+├── core/
+│   ├── config.py    # Settings (pydantic-settings)
+│   ├── security.py  # Identity, get_current_identity()
+│   └── database.py  # [solo con base de datos]
+├── models/          # [solo con base de datos] SQLAlchemy
+├── schemas/         # Pydantic: entrada y salida
+└── routers/         # APIRouter: endpoints y logica de negocio
+```
+
+La logica de negocio vive en los routers. No hay `services/` ni `repositories/`: para
+un servicio de este tamano seria indireccion sin contrapartida. Cuando la misma regla
+haya que invocarla desde dos routers, ahi conviene extraerla.
+
+## Convenciones
+
+- `snake_case` en las respuestas, en las columnas y en los modulos.
+- Versiones **pineadas** en `requirements.txt`. Las de desarrollo, al final.
+- Ninguna URL ni credencial en el codigo: todo por `Settings`.
+- `400` para un body mal formado; el `422` queda para el dominio.
+- Los comentarios explican **por que**, no que hace el codigo.
+
+## Pendientes
+
+- [ ] Reemplazar `app/routers/example.py` y sus schemas por el primer recurso real.
+- [ ] Completar `JWT_SECRET_KEY` en `.env`.

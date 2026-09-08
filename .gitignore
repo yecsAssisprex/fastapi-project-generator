@@ -1,0 +1,9 @@
+# Salidas de prueba del propio generador
+/tmp/
+*.log
+
+# Editor / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

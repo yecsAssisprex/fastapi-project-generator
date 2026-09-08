@@ -1,0 +1,8 @@
+      # Dentro del compose la base se alcanza por el nombre del servicio, no por
+      # localhost: `db`, en su puerto interno.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-{{PROJECT_SNAKE}}}
+    depends_on:
+      db:
+        # `service_healthy`, no `service_started`: Postgres acepta conexiones bastante
+        # despues de que el contenedor arranque, y sin esto la app falla al migrar.
+        condition: service_healthy
