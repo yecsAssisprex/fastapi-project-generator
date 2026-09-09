@@ -6,10 +6,9 @@ y Windows.
 > **Repositorio privado de uso interno. Todos los derechos reservados.**
 > Sin licencia de distribución: no se autoriza su uso fuera de la organización.
 
-No es una plantilla genérica sacada de un tutorial: reproduce el patrón real de los
-nueve microservicios FastAPI de Allegro, con sus mismas versiones pineadas, su misma
-estructura y su misma capa de autenticación. Lo que cambia respecto a esos nueve es
-que aquí ruff, pre-commit y CI vienen de serie.
+No es una plantilla genérica sacada de un tutorial: está inspirado en un patrón que ya ha demostrado funcionar, 
+con versiones pineadas, estructura clara y autenticación lista de fábrica.
+Aquí, además, ruff, pre-commit y CI vienen incluidos desde el principio.
 
 ## Uso
 
