@@ -35,7 +35,7 @@ Set-StrictMode -Version Latest
 
 $ScriptVersion = '1.0.0'
 # De donde clonarse cuando se ejecuta via `iwr ... | iex` y no hay templates/ en disco.
-$DefaultRepo = 'https://github.com/CAMBIAME/fastapi-project-generator.git'
+$DefaultRepo = 'https://github.com/yecsAssisprex/fastapi-project-generator.git'
 $RepoUrl = if ($env:FPG_REPO) { $env:FPG_REPO } else { $DefaultRepo }
 $RepoRef = if ($env:FPG_REF) { $env:FPG_REF } else { 'main' }
 

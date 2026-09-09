@@ -12,7 +12,7 @@ set -euo pipefail
 VERSION="1.0.0"
 # De donde clonarse cuando se ejecuta via `curl | bash` y no hay templates/ en disco.
 # Sobrescribible con la variable de entorno FPG_REPO.
-DEFAULT_REPO="https://github.com/CAMBIAME/fastapi-project-generator.git"
+DEFAULT_REPO="https://github.com/yecsAssisprex/fastapi-project-generator.git"
 REPO_URL="${FPG_REPO:-$DEFAULT_REPO}"
 REPO_REF="${FPG_REF:-main}"
 

@@ -36,24 +36,22 @@ directorio temporal.
 
 ```bash
 # Linux / macOS
-curl -sSL https://raw.githubusercontent.com/<usuario>/fastapi-project-generator/main/bootstrap.sh \
+curl -sSL https://raw.githubusercontent.com/yecsAssisprex/fastapi-project-generator/main/bootstrap.sh \
   | bash -s -- mi-nuevo-proyecto --with-db --with-docker -y
 ```
 
 ```powershell
 # Windows
-$s = iwr -useb https://raw.githubusercontent.com/<usuario>/fastapi-project-generator/main/bootstrap.ps1
+$s = iwr -useb https://raw.githubusercontent.com/yecsAssisprex/fastapi-project-generator/main/bootstrap.ps1
 $f = "$env:TEMP\bootstrap.ps1"; $s.Content | Out-File $f -Encoding utf8
 & $f mi-nuevo-proyecto -WithDb -WithDocker -Yes
 ```
 
-> **Antes de usar el modo remoto**, sustituye `DEFAULT_REPO` (en `bootstrap.sh`) y
-> `$DefaultRepo` (en `bootstrap.ps1`) por la URL real del repositorio, o exporta
-> `FPG_REPO`. Mientras diga `CAMBIAME`, el modo remoto se niega a seguir en vez de
-> fallar a medias.
+> **Con el repositorio en privado, `curl` y `iwr` necesitan credenciales.** Lo
+> práctico es clonarlo una vez y ejecutar el script desde ahí; el modo remoto queda
+> listo para el día que se abra, o para usarlo con un token.
 >
-> Con el repositorio en privado, `curl` necesita credenciales. Lo práctico es clonarlo
-> una vez y ejecutar el script desde ahí.
+> Para apuntar a un fork o a otra rama sin editar nada: `FPG_REPO=<url>` y `FPG_REF=<rama>`.
 
 ## Opciones
 
